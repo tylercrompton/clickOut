@@ -35,7 +35,10 @@
 		return this.on('clickout', function (event) {
 			event.stopPropagation();
 
-			fn.call(this, event);
+			if ($(this).is(':visible')) {
+				fn.call(this, event);
+			}
 		});
 	};
 }(jQuery));
+
