@@ -17,22 +17,20 @@
 		return !!$(currentTarget).has(target).length;
 	}
 
-	$.fn.clickOut = function (data, fn) {
+	$.fn.clickOut = function (eventData, fn) {
 		if (arguments.length === 0) {
 			return this.trigger('clickout');
 		} else if (arguments.length === 1) {
-			fn = data;
-			data = undefined;
+			fn = eventData;
+			eventData = null;
 		}
 
-		$(document).click(
-			$.proxy(function (event) {
-				var target = event.target;
-				if (!isTarget(this, target) && !isChildTarget(this, target)) {
-					this.trigger($.Event('clickout', {target: this}));
-				}
-			}, this)
-		);
+		$(document).click($.proxy(function (event) {
+			var target = event.target;
+			if (!isTarget(this, target) && !isChildTarget(this, target)) {
+				this.trigger($.Event('clickout', {data: eventData, target: this}));
+			}
+		}, this));
 
 		return this.on('clickout', function (event) {
 			event.stopPropagation();
