@@ -9,36 +9,88 @@
 (function ($) {
 	'use strict';
 
-	var isTarget = function (delegateTarget, target) {
-		return $(target).is(delegateTarget);
+	var isChild = function (parent, child) {
+		return !!$(parent).has(child).length;
 	};
 
-	var isChildTarget = function (currentTarget, target) {
-		return !!$(currentTarget).has(target).length;
-	}
+	var addEvent = $.event.add,
+		removeEvent = $.event.remove,
+		listeners = [],
+		visitedListeners = [],
+		documentClickHandler = function (event) {
+			var i, j, node;
 
-	$.fn.clickOut = function (eventData, fn) {
-		if (arguments.length === 0) {
-			return this.trigger('clickout');
-		} else if (arguments.length === 1) {
-			fn = eventData;
-			eventData = null;
+			while (listeners.length > 0) {
+				i = 0;
+
+				for (j = 1; j < listeners.length; j += 1) {
+					if (isChild(listeners[i], listeners[j])) {
+						i = j;
+					}
+				}
+
+				node = listeners[i];
+
+				if (!$(node).is(event.target) && !isChild(node, event.target) && visitedListeners.indexOf(node) === -1) {
+					$(node).trigger($.Event('clickout', {
+						target: event.target
+					}));
+				}
+
+				i = listeners.indexOf(node);
+				if (i !== -1) {
+					visitedListeners.push(listeners.splice(i, 1)[0]);
+				}
+			}
+
+			listeners = visitedListeners;
+			visitedListeners = [];
+		};
+
+	$(function () {
+		$(document).on('click', documentClickHandler);
+	});
+
+	$.event.special.clickout = {
+		'noBubble': true
+	};
+
+	$.event.add = function (elem, types, handler, data, selector) {
+		var splitTypes = (types || '').match(/\S+/g) || [''],
+			i;
+
+		for (i = 0; i < splitTypes.length; i += 1) {
+			if (/^clickout\b/.test(splitTypes[i])) {
+				listeners.push(elem);
+			}
 		}
 
-		$(document).click($.proxy(function (event) {
-			var target = event.target;
-			if (!isTarget(this, target) && !isChildTarget(this, target)) {
-				this.trigger($.Event('clickout', {data: eventData, target: this}));
-			}
-		}, this));
+		addEvent(elem, types, handler, data, selector);
+	};
 
-		return this.on('clickout', function (event) {
-			event.stopPropagation();
+	$.event.remove = function (elem, types, handler, selector, mappedTypes) {
+		var splitTypes = (types || '').match(/\S+/g) || [''],
+			index,
+			i;
 
-			if ($(this).is(':visible')) {
-				fn.call(this, event);
+		if (handler === documentClickHandler) {
+			return;
+		}
+
+		for (i = 0; i < splitTypes.length; i += 1) {
+			if (/^clickout\b/.test(splitTypes[i])) {
+				index = listeners.indexOf(elem);
+				if (index !== -1) {
+					listeners.splice(index, 1);
+					i -= 1;
+				}
 			}
-		});
+		}
+
+		removeEvent(elem, types, handler, selector, mappedTypes);
+	};
+
+	$.fn.clickOut = function (eventData, fn) {
+		return arguments.length > 0 ? this.on('clickout', null, eventData, fn) : this.trigger('clickout');
 	};
 }(jQuery));
-
