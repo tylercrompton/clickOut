@@ -29,7 +29,7 @@
 
 				node = listeners[i];
 
-				if (!$(node).is(event.target) && !isChild(node, event.target) && visitedListeners.indexOf(node) === -1) {
+				if (!$(node).is(event.target) && !isChild(node, event.target) && visitedListeners.indexOf(node) === -1 && $(node).is(':visible')) {
 					$(node).trigger($.Event('clickout', {
 						target: event.target
 					}));
@@ -63,7 +63,13 @@
 	};
 
 	$.fn.clickOut = function (eventData, fn) {
-		return arguments.length > 0 ? this.on('clickout', null, eventData, fn) : this.trigger('clickout');
+		if (arguments.length > 0) {
+			this.on('clickout', null, eventData, fn)
+		} else if (this.is(':visible')) {
+			this.trigger('clickout');
+		}
+
+		return this;
 	};
 
 	$.event.special.click.remove = function (handleObj) {
