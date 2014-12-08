@@ -9,14 +9,12 @@
 (function ($) {
 	'use strict';
 
-	var isChild = function (parent, child) {
-		return !!$(parent).has(child).length;
-	};
-
-	var addEvent = $.event.add,
-		removeEvent = $.event.remove,
+	var removeClickHandler = $.event.special.click.remove,
 		listeners = [],
 		visitedListeners = [],
+		isChild = function (parent, child) {
+			return $(parent).has(child).length > 0;
+		},
 		documentClickHandler = function (event) {
 			var i, j, node;
 
@@ -45,52 +43,41 @@
 
 			listeners = visitedListeners;
 			visitedListeners = [];
+		},
+		addDocumentClickHandler = function () {
+			var handler, clickEvents;
+
+			$(document).on('click.clickout', documentClickHandler);
+			clickEvents = $._data(document).events.click;
+			clickEvents.splice(0, 0, clickEvents.splice(-1, 1)[0]);
 		};
 
-	$(function () {
-		$(document).on('click', documentClickHandler);
-	});
-
 	$.event.special.clickout = {
-		'noBubble': true
-	};
-
-	$.event.add = function (elem, types, handler, data, selector) {
-		var splitTypes = (types || '').match(/\S+/g) || [''],
-			i;
-
-		for (i = 0; i < splitTypes.length; i += 1) {
-			if (/^clickout\b/.test(splitTypes[i])) {
-				listeners.push(elem);
-			}
+		'noBubble': true,
+		'add': function (handleObj) {
+			listeners.push(this);
+		},
+		'remove': function (handleObj) {
+			listeners.splice(listeners.indexOf(this), 1);
 		}
-
-		addEvent(elem, types, handler, data, selector);
-	};
-
-	$.event.remove = function (elem, types, handler, selector, mappedTypes) {
-		var splitTypes = (types || '').match(/\S+/g) || [''],
-			index,
-			i;
-
-		if (handler === documentClickHandler) {
-			return;
-		}
-
-		for (i = 0; i < splitTypes.length; i += 1) {
-			if (/^clickout\b/.test(splitTypes[i])) {
-				index = listeners.indexOf(elem);
-				if (index !== -1) {
-					listeners.splice(index, 1);
-					i -= 1;
-				}
-			}
-		}
-
-		removeEvent(elem, types, handler, selector, mappedTypes);
 	};
 
 	$.fn.clickOut = function (eventData, fn) {
 		return arguments.length > 0 ? this.on('clickout', null, eventData, fn) : this.trigger('clickout');
 	};
+
+	$.event.special.click.remove = function (handleObj) {
+		// Disable removal of the click handler that fires the clickout events.
+		if (handleObj.handler === documentClickHandler) {
+			addDocumentClickHandler();
+		}
+
+		if (removeClickHandler !== undefined) {
+			removeClickHandler(handleObj);
+		}
+	};
+
+	$(function () {
+		addDocumentClickHandler();
+	});
 }(jQuery));
